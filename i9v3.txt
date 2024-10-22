@@ -1,0 +1,328 @@
+﻿Lab 10 
+
+
+### Webserver Configuration on SERVERA: #### 1. Install and Configure Webserver:
+:
+1. Install Apache: sudo dnf install httpd -y
+  
+2. Start and Enable Apache sudo systemctl start httpd sudo systemctl enable httpd
+3. Create a Simple Webpage
+4. Allow HTTP Through Firewall sudo firewall-cmd --permanent --add-service=http sudo firewall-cmd --reload
+5. Verify Webserver curl or http://<servera_ip>
+  
+#### 2. Webserver Process Information:
+To check the Apache process and its child processes, run:
+
+
+1. List Apache Processes ps aux | grep httpd
+  
+2. Child Processes Apache generally runs with a parent process and multiple child processes to handle multiple connections. To list the parent and child processes pstree -p | grep httpd
+  
+3. PR Value (Priority) of Apache To change the priority sudo renice 8 $(pgrep httpd)
+   
+4. Default Priority for User 'student Edit the `/etc/security/limits.conf` file and add the line student soft priority 10
+  
+### Process Information on SERVERA:
+
+
+1. List Processes Run by Root (Alphabetical Order): ps -u root --sort=comm
+  
+2. Select Process Names ps -u root --sort=comm -o comm
+   
+3. Add Parameters for Each Process ps -u root --sort=comm -o comm,args
+   
+4. Replace `%` with Whitespace ps -u root --sort=comm -o comm,args | sed 's/%/ /g'
+   
+5. **Verify with `ps -u root -o args ps -u root -o args
+
+
+6. Process Using Most CPU ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu | head -n 1
+
+
+7.Process with 2nd Highest Memory Usage ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%mem | head -n 2 | tail -n 1
+  
+8. Longest Running Process ps -eo pid,ppid,cmd,etime --sort=etime | tail -n 1
+  
+### Firewall Configuration on SERVERA:
+
+
+1. Allow Only SSH and HTTP sudo firewall-cmd --permanent --add-service=ssh sudo firewall-cmd --permanent --add-service=http sudo firewall-cmd --reload
+   
+2. Configure Firewall Logging To enable logging, edit `/etc/firewalld/firewalld.conf` and set: LogDenied=all
+   Restart firewall: sudo systemctl restart firewalld
+  
+3. Verify Firewall and Logging Access SERVERA using http://<servera_ip>:8080 Check the logs sudo journalctl -xe
+
+
+4.Persist Firewall Rules Save firewall configuration so its persist sudo firewall-cmd --runtime-to-permanent
+   
+5. Create New Website (/app/website):1.Create the Directory sudo mkdir -p /app/website
+      echo "NOT EVEN SELINUX CAN STOP ME!!!" | sudo tee /app/website/index.html
+      
+   2. Configure Apache to Serve from /app/website Create a new configuration file in `/etc/httpd/conf.d`:
+      sudo vi /etc/httpd/conf.d/app-website.conf
+      <VirtualHost *:80>
+          DocumentRoot /app/website
+          <Directory /app/website>
+              AllowOverride None
+              Require all granted
+          </Directory>
+      </VirtualHost>
+     
+   3. Restart Apache sudo systemctl restart httpd
+      
+   4. Verify Access the new website curl or http://<servera_ip>
+     
+### Regular Expressions Tasks:
+
+
+1. Select Rows Containing `fish` grep 'fish' /usr/share/dict/words
+   
+2. Select Rows Containing `cat` with 2 Rows Before and 1 After:grep -B 2 -A 1 'cat' /usr/share/dict/words
+   
+3. Number of Occurrences of `cat`:grep -o 'cat' /usr/share/dict/words | wc -l
+   
+4. Select Rows with `cat` and Show Row Number:grep -n 'cat' /usr/share/dict/words
+  
+5. Select Rows with `t`, a Vowel After, and Ending with `sh` grep -E 't[aeiou].*sh$' /usr/share/dict/words
+   
+6. Select Specific Words Exactly grep -E '^abominable$|^abominate$|^anomie$|^atomize$' /usr/share/dict/words
+   
+7.Count Words with `t`, Vowel After, Ending with `sh` grep -E 't[aeiou].*sh$' /usr/share/dict/words | wc -l
+   
+8. Select Words Exactly 14 Characters Long grep -E '^.{14}$' /usr/share/dict/words
+   
+9. Select Rows Starting with `bl`, Vowel After, Anything After Vowel** grep -E '^bl[aeiou].*' /usr/share/dict/words
+  
+10.Select Rows Containing a 2-Digit Number grep -E '[0-9]{2}' /usr/share/dict/words
+    
+11.Begin with Letter Followed by `e`, or Begin with Number**:grep -E '^[A-Za-z]e|^[0-9]' /usr/share/dict/words
+    
+12.Find Specific Words in a Single Command grep -E 'Bank|Banking|Flunking|Walking' /usr/share/dict/words
+   
+13. Find Files Ending with `password find / -type f -name '*password'
+    
+14.Find Files Beginning with `password find / -type f -name 'password*'
+   
+15.Find Files Named `password find / -type f -name 'password'
+   
+16.Find Files Containing `password grep -r 'password' /
+    
+    
+MI2
+
+
+### 14. Set SELinux to Enforcing Mode on SERVERB
+
+
+1. Check the Current SELinux Mode sestatus
+
+
+2. Set SELinux to Enforcing Mode Edit the `/etc/selinux/config` file:sudo vi /etc/selinux/config line:SELINUX=enforcing
+  
+3. Apply Changes Reboot the system to apply the sudo reboot verify that SELinux is in Enforcing mode:sestatus
+ 
+### 15. Configure Apache to Serve a Website from `/webapp` on Port 85
+
+
+1. **Create the `/webapp` Directory**: sudo mkdir -p /webapp sudo chown apache:apache /webapp
+   
+2. **Create a Simple Web Page**: echo "Hello from webapp on port 85!" | sudo tee /webapp/index.html
+   
+3.Edit Apache Configuration Create a new virtual host configuration file for port 85:sudo vi /etc/httpd/conf.d/webapp.conf
+  <VirtualHost *:85>
+       DocumentRoot "/webapp"
+       <Directory "/webapp">
+           AllowOverride None
+           Require all granted
+       </Directory>
+   </VirtualHost>
+  4. Listen on Port 85 Edit `/etc/httpd/conf/httpd.conf` and add: Listen 85
+   
+ 5. Restart Apache sudo systemctl restart httpd
+   
+6. Configure SELinux for Apache on Port 85 Allow Apache to serve on non-standard ports: sudo semanage port -a -t http_port_t -p tcp 85
+   
+7. Test Access Open a browser and access: http://<serverb_ip>:85
+  
+### 16. Configure Firewall to Allow Web Traffic with Firewall Enabled
+
+
+1. Allow HTTP on Port 85 sudo firewall-cmd --permanent --add-port=85/tcp
+   `
+2. Reload the Firewall: sudo firewall-cmd --reload
+ `
+3. Verify the Firewall Check that the firewall rule has been added: sudo firewall-cmd --list-all
+  
+### 17. Set Web Server Process Priority to 12
+
+
+1. Find the Apache Process Use the `pgrep` command to find the Apache process:pgrep httpd
+ 
+2. Set Priority (PR) to 12 Use the `renice` command to set the priority:sudo renice 12 $(pgrep httpd)
+   
+### 18. Set Maximum Number of Files that the "student" User Can Open to 10,000
+
+
+1. Edit Limits Configuration Edit the `/etc/security/limits.conf` file: sudo vi /etc/security/limits.conf
+   
+2. Add the Following Line student soft nofile 10000 student hard nofile 10000
+   
+3. Verify Changes Log in as the `student` user and check the current limits:ulimit -n
+   
+### 19. Set Default Process Priority for All "student" User Processes to 3
+
+
+1. Edit Limits Configuration Again, edit the `/etc/security/limits.conf` file:sudo vi /etc/security/limits.conf
+2. Add the Following Line student soft priority 3
+3. Verify Changes Log in as the `student` user and check the process priority:ps -o pid,ni,cmd -u student
+
+
+mi2
+### 1. Count lines in `/usr/share/dict/words` starting with “bird”
+You can use `grep` with the `-c` option to count the lines grep -c '^bird' /usr/share/dict/words
+
+
+### 2. Display lines containing "food" with line numbers Use `grep` with the `-n` option to show line numbers grep -n 'food' /usr/share/dict/words
+
+
+### 3. Display words with exactly 12 letters You can use `grep` and `wc` to find words of exactly 12 characters:
+grep -E '^.{12}$' /usr/share/dict/words
+
+
+### 4. Find files ending with ".config" You can use `find` to search the filesystem: find / -name '*.config'
+`
+### 5. Show the status of the SSH daemon (SSHD) To check the status of SSHD, you can use the `systemctl` or `service` command: systemctl status sshd service sshd status
+
+
+6. Display and explain the status of the MySQL server To check MySQL's status, you can use systemctl status mysql
+
+
+.### 7. Set the lowest priority for the MySQL server processTo set the lowest possible priority, you can use the `renice` command. First, find the PID of the MySQL process, then set its priority:
+ps aux | grep mysql  # Find the PID of the MySQL process sudo renice 19 <mysql_pid>
+
+
+### 8. Set the maximum number of open files for the user "ishod3_remote" You can set this in `/etc/security/limits.conf`1. Open the file: sudo nano /etc/security/limits.conf ishod3_remote  hard  nofile  12000
+   
+### 9. Ensure Apache works with the firewall enabled (on SERVERB) You need to allow HTTP traffic (port 80) in the firewall. Use `firewalld`: sudo firewall-cmd --permanent --add-service=http sudo firewall-cmd --reload
+
+
+### 10. Ensure Apache works with SELinux in enforcing mode (on SERVERB) You can check if SELinux is in enforcing mode: sestatus To enable SELinux enforcement sudo setenforce 1 To make it persist after reboot:
+sudo sed -i 's/SELINUX=permissive/SELINUX=enforcing/g' /etc/selinux/config
+
+
+### 11. Configure Apache to work on port 99 with SELinux enforcing (on SERVERB)
+1. Edit the Apache config file to listen on port 99: sudo nano /etc/httpd/conf/httpd.conf Add or modify Listen 99
+   
+2. Allow the port in SELinux sudo semanage port -a -t http_port_t -p tcp 99
+3. Restart Apache: sudo systemctl restart httpd
+   
+### 12. Create a new virtual host served from `/web-aplikacija` with SELinux in enforcing mode (on SERVERB)
+1. Create the directory sudo mkdir -p /web-aplikacija sudo chown apache:apache /web-aplikacija
+   
+2. Configure SELinux permissions sudo semanage fcontext -a -t httpd_sys_content_t "/web-aplikacija(/.*)?"
+   sudo restorecon -Rv /web-aplikacija
+   
+3. Create a virtual host configuration in Apache sudo nano /etc/httpd/conf.d/web-aplikacija.conf
+   <VirtualHost *:80>
+       DocumentRoot "/web-aplikacija"
+       ServerName your.server.name
+   </VirtualHost>
+  
+4. Restart Apache sudo systemctl restart httpd
+
+
+I9
+
+
+[student@serverb ~]$ # sestatus getenforce
+(student@serverb ~]$ # sudo setenforce 1
+[student@serverb ~]$ # sudo dnf install httpd
+[student@serverb ~]$ # sudo systemctl enable httpd
+[student@serverb ~]$ # sudo systemctl start httpd 
+[student@serverb -1$ sudo vim /etc/httpd/conf/httpd.conf
+[student@serverb ~]$ # replace Listen 80 with 85
+[student@serverb -]$ <VirtualHost:85> DocumentRoot "/webapp" <Directory "/webapp"> AllowOverride None Require all granted </Directory> </VirtualHost>
+[student@serverb ~]$ # sudo systemctl restart httpd.
+[student@serverb ~]$ # sudo firewall-cmd --permanent-add-port=85/tcp
+[student@serverb ~]$ # sudo firewall-cmd  --reload. 
+[student@serverb ~]$ # ps aux grep httpd use the pid of root at top 
+[student@serverb ~]$ sudo renice 12 -p <pid>
+[student@serverb ~]$ # sudo vim /etc/security/limits.conf 
+[student@serverb~]$ # add at the end student soft nofile 10000 next row student hard nofile 10000 
+[student@serverb ~]$ # add at the end student soft priority 3 next row student hard priority 3
+
+
+Rgx
+
+
+### Tools Overview:
+- **Grep**: Searches for patterns in text files.
+- **Sed**: Stream editor used for editing text.
+- **Awk**: Tool for manipulating and processing text files.
+### Key Regular Expression Concepts:
+1. **Alternation (`|`)**: Matches one of several patterns. Example: `gray|grey`.
+2. **Grouping (`()`)**: Groups expressions together. Example: `jezik(a|u)` matches "jezika" or "jeziku".
+3. **Quantification**: Defines how often elements should appear.
+   - `?`: 0 or 1 occurrence.
+   - `*`: 0 or more occurrences.
+   - `+`: 1 or more occurrences.
+   - Example: `go+gle` matches "gogle", "google", "gooogle", etc.
+
+
+### Anchors:
+- `^`: Matches the start of a string.
+- `$`: Matches the end of a string.
+- Example: `^[A-Z]` matches strings that start with a capital letter.
+
+
+### Character Classes:
+- `[A-Z]`: Matches a single uppercase letter.
+- `[A-Z0-9]`: Matches a single uppercase letter or number.
+- `[^abc]`: Matches any character except 'a', 'b', or 'c'.
+  
+### Greedy vs. Non-Greedy Matching:
+- Regular expressions are greedy by default (they match the largest possible string).
+- You can make them non-greedy by adding a `?`. Example: `.*?` instead of `.*`.
+### Example Patterns:
+- `a|b*`: Matches `a`, an empty string, or any number of `b` characters.
+- `(0|(1(01*0)*1))*`: Matches binary strings that represent binary numbers.
+### Sed (Stream Editor) Commands:
+- **Substitution**: `s/old_text/new_text/g` replaces all occurrences of `old_text` with `new_text`.
+- Example: `echo "path/to/file.txt" | sed 's/.*\///'` outputs `file.txt` by removing everything before the last `/`.
+- Other commands: `p` (print), `d` (delete), `a` (append), `i` (insert), `n` (next line).
+### Practical Examples:
+- **Grep Usage**:
+   - Find all lines written by the `sshd` service from the `/var/log/secure` file for specific dates.
+   - Example: `grep -E sshd /var/log/secure | grep -E "Mar 2 11:30:02"` retrieves logs from March 2nd at 11:30:02.
+- **Sed Usage**:
+   - Delete empty lines: `sed '/^$/d' file.txt`.
+   - Replace specific text for multiple lines: `sed -e '/Marko/ s/grade/5/; /Ivan/ s/grade/1/;' students.csv`.
+I6
+sudo dnf -y install httpd, sudo systemctl enable --now httpd, sudo systemctl status httpd 
+sudo dnf -y install nginx, sudo systemctl enable --now nginx
+
+
+sudo vim /etc/httpd/conf.d/www.apache.local.conf
+<VirtualHost *.80>
+             ServerName www.apache.local
+             DocumentRoot /var/www/www.apache.local
+</VirtualHost>
+sudo mkdir -p /var/www/www.apache.local
+sudo vim /var/www/www.apache.local/index.html insert www.apache.local
+sudo mkdir -p /var/log/httpd/
+sudo httpd -t syntax check 
+sudo vim /etc/host/ 172.25.250.11 primer-ispita  172.25.250.10 www.apache.local 
+sudo systemctl restart httpd
+curl www.apache.local
+sudo vim /etc/nginx/conf.d/www.nginx.local.conf
+server {
+           server name www.nginx.local;
+           root                       /var/www/www,nginx.local;
+}
+sudo mkdir -p /var/www/www.nginx.local
+sudo vim /var/www/www.ngix.local/index.html insert www.nginx.local
+sudo -R o+r /var/www/
+sudo nginx -t
+sudo vim /etc/host insert 172.25.250.11 www.nginx.local web.nginx.local
+sudo systemctl restart nginx
